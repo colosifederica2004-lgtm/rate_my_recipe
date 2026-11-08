@@ -48,7 +48,7 @@ def bayesian_weighted_ranking(recipe_stats, m=DEFAULT_M):
     """
     ranking = recipe_stats.copy()
 
-    C = C = (
+    C = (
     (recipe_stats["average_rating"] * recipe_stats["rating_count"]).sum()
     / recipe_stats["rating_count"].sum()
 )
