@@ -58,7 +58,6 @@ def rating_distribution(interactions):
         "Number of Interactions"
     )
 
-    ax.set_xticks(range(6))
     fig.tight_layout()
 
     return fig
@@ -81,9 +80,10 @@ def review_count_distribution(reviews_per_recipe):
     fig, ax = plt.subplots(figsize=(9, 5))
 
     sns.histplot(
-        x=reviews_per_recipe,
-        bins=50,
-        ax=ax
+    x=reviews_per_recipe,
+    bins=50,
+    log_scale=True,
+    ax=ax
     )
 
     apply_style(
@@ -93,7 +93,6 @@ def review_count_distribution(reviews_per_recipe):
         "Number of Recipes"
     )
 
-    ax.set_xscale("log")
     fig.tight_layout()
 
     return fig
