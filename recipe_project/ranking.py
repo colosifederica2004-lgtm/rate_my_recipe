@@ -19,7 +19,8 @@ def simple_average_ranking(recipe_stats):
     """
     ranking = recipe_stats.sort_values(
         by="average_rating",
-        ascending=False
+        ascending=False,
+        kind = "stable"
     ).copy()
 
     return ranking
@@ -27,9 +28,8 @@ def simple_average_ranking(recipe_stats):
 
 
 # Bayesian Weighted Ranking
-DEFAULT_M = 9
 
-def bayesian_weighted_ranking(recipe_stats, m=DEFAULT_M):
+def bayesian_weighted_ranking(recipe_stats, m=None):
     """
     Rank recipes using the Bayesian weighted rating formula.
 
@@ -37,9 +37,9 @@ def bayesian_weighted_ranking(recipe_stats, m=DEFAULT_M):
     ----------
     recipe_stats : pandas.DataFrame
         DataFrame containing recipe-level statistics.
-    m : int, optional
-        Minimum number of ratings used to adjust the weight.
-        Defaults to DEFAULT_M.
+    m : float, optional
+        Weight of the overall average rating. If None, it is the 90th
+        percentile of rating_count.
 
     Returns
     -------
@@ -48,10 +48,16 @@ def bayesian_weighted_ranking(recipe_stats, m=DEFAULT_M):
     """
     ranking = recipe_stats.copy()
 
+    if m is None:
+        m = recipe_stats["rating_count"].quantile(0.90)
+
+    if m <= 0:
+        raise ValueError("m must be greater than zero.")
+
     C = (
     (recipe_stats["average_rating"] * recipe_stats["rating_count"]).sum()
     / recipe_stats["rating_count"].sum()
-)
+    )
     v = recipe_stats["rating_count"]
     R = recipe_stats["average_rating"]
 
@@ -62,7 +68,8 @@ def bayesian_weighted_ranking(recipe_stats, m=DEFAULT_M):
 
     ranking = ranking.sort_values(
         by="bayesian_score",
-        ascending=False
+        ascending=False,
+        kind = "stable"
     )
 
     return ranking
