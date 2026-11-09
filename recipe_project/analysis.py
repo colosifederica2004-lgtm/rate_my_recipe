@@ -65,6 +65,7 @@ def split_train_test(interactions, train_fraction=0.5, seed=DEFAULT_SEED):
 
     return interactions[is_train].copy(), interactions[~is_train].copy()
 
+
 def build_evaluation_table(train, test):
     """
     Combine the train statistics with the test ratings of each recipe.
