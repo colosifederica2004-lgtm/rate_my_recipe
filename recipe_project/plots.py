@@ -150,3 +150,4 @@ def ranking_comparison(simple_ranking, weighted_ranking, top_n=1000):
     fig.tight_layout()
 
     return fig
+
