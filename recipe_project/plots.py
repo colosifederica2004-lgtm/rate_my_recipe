@@ -80,10 +80,10 @@ def review_count_distribution(reviews_per_recipe):
     fig, ax = plt.subplots(figsize=(9, 5))
 
     sns.histplot(
-    x=reviews_per_recipe,
-    bins=50,
-    log_scale=True,
-    ax=ax
+        x=reviews_per_recipe,
+        bins=50,
+        log_scale=True,
+        ax=ax
     )
 
     apply_style(
@@ -99,7 +99,8 @@ def review_count_distribution(reviews_per_recipe):
 
 
 def ranking_comparison(simple_ranking, weighted_ranking, top_n=1000):
-    """
+    """Draw a boxplot of the number of ratimgs of the top recipes.
+    
     Compare the number of ratings received by recipes
     in the top results of the two ranking strategies.
 
@@ -151,3 +152,46 @@ def ranking_comparison(simple_ranking, weighted_ranking, top_n=1000):
 
     return fig
 
+
+GROUP_LABELS = {
+    "all_recipes": "All Rated Recipes",
+    "top_recipes": "Bayesian Top 100"
+}
+
+
+def category_shares_chart(shares, categories, title, xlabel):
+    """Draw grouped bars comparing category shares.
+
+    shares: table with one row per category and the columns
+    'all_recipes' and 'top_recipes' (percentages).
+    categories: category names in the order to display.
+    """
+
+    data = shares.reindex(categories).rename_axis("Category").reset_index()
+
+    data = data.melt(
+        id_vars="Category",
+        var_name="Group",
+        value_name="Percentage"
+    )
+    data["Group"] = data["Group"].map(GROUP_LABELS)
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+
+    sns.barplot(
+        data=data,
+        x="Category",
+        y="Percentage",
+        hue="Group",
+        ax=ax
+    )
+
+    for container in ax.containers:
+        ax.bar_label(container, fmt="%.1f", padding=2)
+
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("Percentage of Recipes (%)")
+    ax.legend(title="")
+
+    return fig
