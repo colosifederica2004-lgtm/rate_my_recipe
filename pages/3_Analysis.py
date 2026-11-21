@@ -1,16 +1,22 @@
+"""Analysis page: ranking comparison and train-test validation."""
+
 import streamlit as st
 import plotly.express as px
 
-from recipe_project.data_loader import load_recipes, load_interactions
+from recipe_project.analysis import (
+    evaluate_rankings,
+    load_recipes_with_stats,
+    split_train_test
+)
 from recipe_project.cleaning import filter_valid_interactions
-from recipe_project.analysis import calculate_recipe_stats
+from recipe_project.data_loader import load_interactions
 from recipe_project.ranking import (
     simple_average_ranking,
     bayesian_weighted_ranking
 )
 
 # Page title
-st.title("📊 Recipe Analysis")
+st.title("Recipe Analysis")
 
 st.write(
     """
@@ -20,24 +26,25 @@ st.write(
     """
 )
 
+
 @st.cache_data
 def load_analysis_data():
-    """Load and prepare data for ranking analysis."""
+    """Load recipes with their rating statistics."""
 
-    recipes = load_recipes()
-    interactions = load_interactions()
+    return load_recipes_with_stats(recipe_columns=["id", "name"])
 
+
+@st.cache_data
+def run_validation():
+    """Evaluate the two rankings with a train-test split of the ratings."""
+
+    interactions = load_interactions(usecols=["recipe_id", "rating"])
     valid_interactions = filter_valid_interactions(interactions)
-    recipe_stats = calculate_recipe_stats(valid_interactions)
 
-    recipes_with_stats = recipes.merge(
-        recipe_stats,
-        left_on="id",
-        right_on="recipe_id",
-        how="inner"
-    )
+    train, test = split_train_test(valid_interactions)
 
-    return recipes_with_stats
+    return evaluate_rankings(train, test)
+
 
 # Load data
 recipes_with_stats = load_analysis_data()
@@ -102,6 +109,12 @@ col3.metric(
     f"{common_percentage:.2f}%"
 )
 
+st.caption(
+    "A low overlap means that the two methods select very different "
+    "recipes: the simple average tends to favour recipes with very few "
+    "ratings, while the Bayesian average favours recipes with many ratings."
+)
+
 # Display ranking positions
 st.subheader("Ranking Position Comparison")
 
@@ -130,7 +143,7 @@ else:
         columns={
             "name_simple": "Recipe",
             "simple_position": "Simple Pos.",
-            "bayesian_position": "Bayesian Pos",
+            "bayesian_position": "Bayesian Pos.",
             "rating_count_simple": "Ratings",
             "average_rating_simple": "Avg. Rating",
             "bayesian_score": "Bayesian Score"
@@ -140,33 +153,26 @@ else:
     # Display the comparison table
     st.dataframe(
         comparison_table,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
-        "Recipe": st.column_config.TextColumn(
-            width="large"
-        ),
-        "Simple Average Position": st.column_config.NumberColumn(
-            format="%d",
-            width="small"
-        ),
-        "Bayesian Weighted Position": st.column_config.NumberColumn(
-            format="%d",
-            width="small"
-        ),
-        "Number of Ratings": st.column_config.NumberColumn(
-            format="%d",
-            width="small"
-        ),
-        "Average Rating": st.column_config.NumberColumn(
-            format="%.2f",
-            width="small"
-        ),
-        "Bayesian Score": st.column_config.NumberColumn(
-            format="%.3f",
-            width="small"
-        )
-    }
+            "Recipe": st.column_config.TextColumn(width="large"),
+            "Simple Pos.": st.column_config.NumberColumn(
+                format="%d", width="small"
+            ),
+            "Bayesian Pos.": st.column_config.NumberColumn(
+                format="%d", width="small"
+            ),
+            "Ratings": st.column_config.NumberColumn(
+                format="%d", width="small"
+            ),
+            "Avg. Rating": st.column_config.NumberColumn(
+                format="%.2f", width="small"
+            ),
+            "Bayesian Score": st.column_config.NumberColumn(
+                format="%.3f", width="small"
+            ),
+        }
     )
 
     # Calculate the change in ranking position
@@ -212,7 +218,7 @@ else:
     )
 
     fig_modern.update_traces(
-        marker=dict(size=11, opacity=0.85,line=dict(width=1.5, color="white"))
+        marker=dict(size=11, opacity=0.85, line=dict(width=1.5, color="white"))
     )
 
     fig_modern.update_layout(
@@ -230,22 +236,18 @@ else:
         title_font=dict(
             size=20,
             color="#000000"
-        )   
+        )
     )
 
     fig_modern.update_xaxes(range=[0, top_n])
-    fig_modern.update_yaxes(
-        range=[0, top_n],
-        scaleanchor="x",
-        scaleratio=1
-    )
+    fig_modern.update_yaxes(range=[0, top_n])
 
     st.plotly_chart(fig_modern, width="stretch")
 
     st.markdown("### 💡 How to interpret the results")
 
-st.write(
-    """
+    st.write(
+        """
     Recipes below the diagonal line improve their position in the
     Bayesian ranking, while recipes above the line move down.
 
@@ -253,5 +255,74 @@ st.write(
     with the average rating, can change the position of recipes
     in the final ranking.
     """
+    )
+
+
+# --------------------------------------------------
+# VALIDATION
+# --------------------------------------------------
+
+st.divider()
+
+st.subheader("Validation: Which Ranking Predicts Better?")
+
+st.write(
+    "The ratings are randomly split into two halves. Both rankings are "
+    "built on the first half (train) and evaluated on the second half "
+    "(test): for the top recipes of each ranking, we calculate the mean "
+    "rating given by other users."
 )
 
+with st.spinner("Running the validation..."):
+    validation_results, baseline = run_validation()
+
+validation_results = validation_results.copy()
+validation_results["Top recipes"] = (
+    "Top " + validation_results["top_n"].astype(str)
+)
+
+fig_validation = px.bar(
+    validation_results,
+    x="Top recipes",
+    y="mean_test_rating",
+    color="method",
+    barmode="group",
+    text_auto=".3f",
+    color_discrete_map={
+        "Simple average": "#E75480",
+        "Bayesian average": "#7B2CBF"
+    },
+    labels={
+        "mean_test_rating": "Mean test rating",
+        "method": "Ranking"
+    },
+    title="Mean Rating Received in the Test Set"
+)
+
+fig_validation.add_hline(
+    y=baseline,
+    line_dash="dash",
+    line_color="#999999",
+    annotation_text=f"Baseline: {baseline:.3f}",
+    annotation_position="top left"
+)
+
+fig_validation.update_traces(
+    textposition="inside",
+    textfont_color="white"
+)
+
+fig_validation.update_layout(
+    template="plotly_white",
+    height=450,
+    yaxis_range=[4.5, 5.0]
+)
+
+st.plotly_chart(fig_validation, width="stretch")
+
+st.caption(
+    "The baseline is the mean test rating of all the evaluated recipes. "
+    "The vertical axis starts at 4.5 to make the differences visible. "
+    "The evaluation uses a single random split of the ratings, so the "
+    "results should be interpreted with caution."
+)

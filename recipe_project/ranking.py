@@ -2,6 +2,7 @@
 
 import pandas as pd
 
+
 def _validate_recipe_stats(recipe_stats):
     """Validate the input DataFrame for ranking calculations."""
 
@@ -39,7 +40,7 @@ def _validate_recipe_stats(recipe_stats):
 # --------------------------------------------------
 # 1. SIMPLE AVERAGE RANKING
 # --------------------------------------------------
- 
+
 def simple_average_ranking(recipe_stats):
     """
     Rank recipes according to their average rating.
@@ -68,6 +69,7 @@ def simple_average_ranking(recipe_stats):
 # 2. BAYESIAN WEIGHTED RANKING
 # --------------------------------------------------
 
+
 def bayesian_weighted_ranking(recipe_stats, m=None):
     """
     Rank recipes using the Bayesian weighted rating formula.
@@ -76,7 +78,7 @@ def bayesian_weighted_ranking(recipe_stats, m=None):
     ----------
     recipe_stats : pandas.DataFrame
         DataFrame containing recipe-level statistics.
-    
+
     m : float, optional
         Weight of the overall average rating. If None, it is the 90th
         percentile of rating_count.
@@ -89,7 +91,6 @@ def bayesian_weighted_ranking(recipe_stats, m=None):
     _validate_recipe_stats(recipe_stats)
 
     ranking = recipe_stats.copy()
-
 
     # Determine the regularization parameter
     if m is None:
@@ -104,7 +105,6 @@ def bayesian_weighted_ranking(recipe_stats, m=None):
     ):
         raise ValueError("m must be a finite positive number.")
 
-    
     # Calculate the global weighted average rating
     C = (
         ranking["average_rating"] * ranking["rating_count"]
@@ -125,4 +125,3 @@ def bayesian_weighted_ranking(recipe_stats, m=None):
         ascending=False,
         kind="stable"
     )
-

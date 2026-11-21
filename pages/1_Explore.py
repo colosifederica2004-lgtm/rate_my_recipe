@@ -1,29 +1,26 @@
+"""Explore page: search and filter recipes."""
+
 import streamlit as st
 import pandas as pd
 
-from recipe_project.data_loader import load_recipes, load_interactions
-from recipe_project.cleaning import filter_valid_interactions
-from recipe_project.analysis import calculate_recipe_stats
+from recipe_project.analysis import load_recipes_with_stats
 
 
 @st.cache_data
 def get_recipe_data():
-    """Load recipes and calculate their rating statistics."""
+    """Load recipes and their rating statistics."""
 
-    recipes = load_recipes()
-    interactions = load_interactions()
-
-    valid_interactions = filter_valid_interactions(interactions)
-    recipe_stats = calculate_recipe_stats(valid_interactions)
-
-    recipes_with_stats = recipes.merge(
-        recipe_stats,
-        left_on="id",
-        right_on="recipe_id",
+    recipes = load_recipes_with_stats(
+        recipe_columns=[
+            "id", "name", "minutes", "n_ingredients", "description"
+        ],
         how="left"
     )
 
-    return recipes_with_stats
+    # Show the most reviewed recipes first
+    return recipes.sort_values(
+        "rating_count", ascending=False, kind="stable"
+    )
 
 
 # Load data
@@ -66,7 +63,7 @@ with col2:
 
 with col3:
     min_rating = st.selectbox(
-        "⭐ Minimum avergae rating",
+        "⭐ Minimum average rating",
         [0, 1, 2, 3, 4, 5],
         format_func=lambda x: (
             "Any rating" if x == 0 else f"{x}+ stars"
@@ -122,10 +119,10 @@ for _, recipe in filtered_recipes.head(20).iterrows():
         # Recipe name
         st.subheader(f"🍽️ {recipe['name']}")
 
-        # Rating information
-        col1, col2 = st.columns([2, 1])
+        # Recipe information: rating, time and ingredients in one row
+        rating_col, time_col, ingredients_col = st.columns(3)
 
-        with col1:
+        with rating_col:
             if pd.notna(recipe["average_rating"]):
 
                 average_rating = recipe["average_rating"]
@@ -143,21 +140,16 @@ for _, recipe in filtered_recipes.head(20).iterrows():
             else:
                 st.write("No ratings available.")
 
-        with col2:
+        with time_col:
             if pd.notna(recipe["minutes"]) and recipe["minutes"] > 0:
                 st.write(f"⏱️ {recipe['minutes']} min")
-                st.caption("Preparation time")
             else:
                 st.write("⏱️ Not available")
-                st.caption("Preparation time")
-        
-        # Number of ingredients
-        st.write(
-           f"🥕 {recipe['n_ingredients']} ingredients"
-        )
+
+        with ingredients_col:
+            st.write(f"🥕 {recipe['n_ingredients']} ingredients")
 
         # Recipe description
         if pd.notna(recipe["description"]) and recipe["description"].strip():
             with st.expander("📝 View description"):
                 st.write(recipe["description"])
-
